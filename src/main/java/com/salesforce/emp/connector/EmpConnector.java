@@ -22,8 +22,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import org.cometd.bayeux.Channel;
 import org.cometd.bayeux.Message;
 import org.cometd.bayeux.client.ClientSessionChannel;
+import org.cometd.bayeux.client.ClientSessionChannel.MessageListener;
 import org.cometd.client.BayeuxClient;
 import org.cometd.client.transport.LongPollingTransport;
 import org.eclipse.jetty.client.HttpClient;
@@ -218,7 +220,6 @@ public class EmpConnector {
         LongPollingTransport httpTransport = new LongPollingTransport(parameters.longPollingOptions(), httpClient) {
             @Override
             protected void customize(Request request) {
-                log.info("customizing request for {} {}", request.getMethod(), request.getPath());
                 request.header(AUTHORIZATION, parameters.bearerToken());
             }
         };
@@ -235,6 +236,15 @@ public class EmpConnector {
             }
         };
         client.addExtension(new ReplayExtension(replay));
+        client.getChannel(Channel.META_CONNECT).addListener((MessageListener) (channel, message) -> {
+            if (!message.isSuccessful()) {
+                Object error = message.get(ERROR);
+                if (error == null) {
+                    error = message.get(FAILURE);
+                }
+                log.info("error in connect: {}", error);
+            }
+        });
         client.handshake((c, m) -> {
             log.info("received handshake response: " + future);
             if (!m.isSuccessful()) {
