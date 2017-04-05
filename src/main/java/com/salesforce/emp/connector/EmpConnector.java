@@ -118,8 +118,6 @@ public class EmpConnector {
     /**
      * Start the connector
      * 
-     * @param handshakeTimeout
-     *            - milliseconds to wait until handshake has been completed
      * @return true if connection was established, false otherwise
      */
     public Future<Boolean> start() {
@@ -220,6 +218,7 @@ public class EmpConnector {
         LongPollingTransport httpTransport = new LongPollingTransport(parameters.longPollingOptions(), httpClient) {
             @Override
             protected void customize(Request request) {
+                log.info("customizing request for {} {}", request.getMethod(), request.getPath());
                 request.header(AUTHORIZATION, parameters.bearerToken());
             }
         };
@@ -237,17 +236,18 @@ public class EmpConnector {
         };
         client.addExtension(new ReplayExtension(replay));
         client.handshake((c, m) -> {
+            log.info("received handshake response: " + future);
             if (!m.isSuccessful()) {
                 Object error = m.get(ERROR);
                 if (error == null) {
                     error = m.get(FAILURE);
                 }
                 log.info("error in handshake: {}", error);
+                running.set(false);
                 future.completeExceptionally(
                         new ConnectException(String.format("Cannot connect [%s] : %s", parameters.endpoint(), error)));
-                running.set(false);
             } else {
-                log.debug("Handshake successful");
+                log.info("Handshake successful");
                 future.complete(true);
             }
         });
@@ -260,7 +260,7 @@ public class EmpConnector {
     }
 
     private void reconnect(int attempt) {
-        if (!running.get()) { return; }
+        if (running.get()) { return; }
         if (attempt > parameters.reconnectAttempts()) {
             log.error("Cannot reconnect to the server after {} attempts", parameters.reconnectAttempts());
             stop();
