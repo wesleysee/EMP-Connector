@@ -244,21 +244,13 @@ public class EmpConnector {
                 }
                 log.info("error in connect: {}", error);
                 if (error.toString().equals("403::Unknown client")) {
-                    log.info("refreshing bearer token");
                     parameters.refreshBearerToken();
-                    log.info("refreshing bearer token completed");
                 }
             }
         });
         client.getChannel(Channel.META_DISCONNECT).addListener((MessageListener) (channel, message) -> {
             log.info("disconnect: {}", message);
-            if (!message.isSuccessful()) {
-                Object error = message.get(ERROR);
-                if (error == null) {
-                    error = message.get(FAILURE);
-                }
-                log.info("error in connect: {}", error);
-            }
+            exec.execute(() -> reconnect());
         });
         client.handshake((c, m) -> {
             log.info("received handshake response: " + future);
@@ -271,12 +263,12 @@ public class EmpConnector {
                 if (error.toString().equals("401::Authentication invalid")) {
                     parameters.refreshBearerToken();
                 }
-                running.set(false);
                 future.completeExceptionally(
                         new ConnectException(String.format("Cannot connect [%s] : %s", parameters.endpoint(), error)));
             } else {
                 log.info("Handshake successful");
                 future.complete(true);
+                exec.execute(() -> resubscribe());
             }
         });
 
@@ -288,7 +280,7 @@ public class EmpConnector {
     }
 
     private void reconnect(int attempt) {
-        if (running.get()) { return; }
+        if (!running.get()) { return; }
         if (attempt > parameters.reconnectAttempts()) {
             log.error("Cannot reconnect to the server after {} attempts", parameters.reconnectAttempts());
             stop();
