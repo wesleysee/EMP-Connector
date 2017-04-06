@@ -22,6 +22,8 @@ public interface BayeuxParameters {
      */
     String bearerToken();
 
+    default void refreshBearerToken() {};
+
     /**
      * @return the URL of the platform Streaming API endpoint
      */

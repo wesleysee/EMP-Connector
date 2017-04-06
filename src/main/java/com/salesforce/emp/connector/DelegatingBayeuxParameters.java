@@ -29,6 +29,11 @@ public class DelegatingBayeuxParameters implements BayeuxParameters {
     }
 
     @Override
+    public void refreshBearerToken() {
+        parameters.refreshBearerToken();
+    }
+
+    @Override
     public URL endpoint() {
         return parameters.endpoint();
     }
