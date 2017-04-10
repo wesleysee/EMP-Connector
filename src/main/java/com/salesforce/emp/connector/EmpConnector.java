@@ -228,10 +228,10 @@ public class EmpConnector {
             @Override
             public void onFailure(Throwable failure, List<? extends Message> messages) {
                 if (failure instanceof EOFException) {
-                    log.error("connection failure, reconnecting");
-                    exec.execute(() -> reconnect());
+                    log.error("connection failure, reconnecting?", failure);
+                    //exec.execute(() -> reconnect());
                 } else {
-                    log.error("connection failure, reconnecting", failure);
+                    log.error("connection failure, logging", failure);
                 }
             }
         };
@@ -242,10 +242,10 @@ public class EmpConnector {
                 if (error == null) {
                     error = message.get(FAILURE);
                 }
-                log.info("error in connect: {}", error);
-                if (error.toString().equals("403::Unknown client")) {
-                    parameters.refreshBearerToken();
-                }
+                log.warn("error in connect: {}", error);
+                //if (error.toString().equals("403::Unknown client")) {
+                parameters.refreshBearerToken();
+                //}
             }
         });
         client.getChannel(Channel.META_DISCONNECT).addListener((MessageListener) (channel, message) -> {
